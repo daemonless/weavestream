@@ -45,6 +45,7 @@ POSTGRES_PASSWORD=weavestream
 POSTGRES_DB=weavestream
 
 DATA_DIR=./data
+WEB_HOST_PORT=3000
 APP_URL=http://localhost:3000
 API_URL=http://localhost:3000/api
 
@@ -77,7 +78,6 @@ services:
     image: ghcr.io/daemonless/postgres:16
     container_name: weavestream-postgres
     restart: always
-    network_mode: host
     annotations:
       org.freebsd.jail.allow.sysvipc: "true"
     environment:
@@ -94,7 +94,6 @@ services:
     image: ghcr.io/daemonless/redis:latest
     container_name: weavestream-redis
     restart: always
-    network_mode: host
     environment:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
@@ -106,7 +105,6 @@ services:
     image: ghcr.io/daemonless/weavestream-api:latest
     container_name: weavestream-api
     restart: always
-    network_mode: host
     depends_on:
       - postgres
       - redis
@@ -114,8 +112,8 @@ services:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@127.0.0.1:5432/${POSTGRES_DB:-weavestream}
-      REDIS_URL: redis://127.0.0.1:6379/0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@postgres:5432/${POSTGRES_DB:-weavestream}
+      REDIS_URL: redis://redis:6379/0
       APP_URL: ${APP_URL:-http://localhost:3000}
       API_URL: ${API_URL:-http://localhost:3000/api}
       FILE_STORAGE_DIR: /var/lib/weavestream/files
@@ -135,7 +133,6 @@ services:
     image: ghcr.io/daemonless/weavestream-worker:latest
     container_name: weavestream-worker
     restart: always
-    network_mode: host
     depends_on:
       - redis
       - api
@@ -143,8 +140,8 @@ services:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@127.0.0.1:5432/${POSTGRES_DB:-weavestream}
-      REDIS_URL: redis://127.0.0.1:6379/0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@postgres:5432/${POSTGRES_DB:-weavestream}
+      REDIS_URL: redis://redis:6379/0
       APP_URL: ${APP_URL:-http://localhost:3000}
       API_URL: ${API_URL:-http://localhost:3000/api}
       FILE_STORAGE_DIR: /var/lib/weavestream/files
@@ -164,16 +161,17 @@ services:
     image: ghcr.io/daemonless/weavestream-web:latest
     container_name: weavestream-web
     restart: always
-    network_mode: host
     depends_on:
       - api
     environment:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
-      API_INTERNAL_URL: http://127.0.0.1:4000
+      API_INTERNAL_URL: http://api:4000
       COOKIE_SIGNING_KEY: ${COOKIE_SIGNING_KEY}
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
+    ports:
+      - "${WEB_HOST_PORT:-3000}:3000"
 ```
 
 Then run `podman-compose up -d`.
@@ -193,6 +191,7 @@ Then run `podman-compose up -d`.
 | `APP_URL` | `http://localhost:3000` | Public URL where users access Weavestream (default: http://localhost:3000) |
 | `API_URL` | `http://localhost:3000/api` | Public URL of the API (default: http://localhost:3000/api) |
 | `DATA_DIR` | `./data` | Host path for persistent data (files, backups, database, redis) |
+| `WEB_HOST_PORT` | `3000` | Published host port for the web UI (default: 3000) |
 | `TRUST_PROXY_HOPS` | `1` | Reverse proxy hops in front of the web UI, 0 when exposed directly (default: 1) |
 | `JWT_SIGNING_KEY` | `<JWT_SIGNING_KEY>` | 32-byte base64 secret shared by api and worker |
 | `MFA_ENCRYPTION_KEY` | `<MFA_ENCRYPTION_KEY>` | 32-byte base64 secret shared by api and worker |
