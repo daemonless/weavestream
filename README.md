@@ -45,13 +45,26 @@ POSTGRES_PASSWORD=weavestream
 POSTGRES_DB=weavestream
 
 DATA_DIR=./data
-WEB_HOST_PORT=3000
 APP_URL=http://localhost:3000
 API_URL=http://localhost:3000/api
 
 PUID=1000
 PGID=1000
 TZ=UTC
+
+# Reverse proxy hops in front of the web UI; 0 when it is exposed directly
+TRUST_PROXY_HOPS=1
+
+# Secrets: no defaults on purpose, a shipped value would be shared by every
+# install. Generate each with `openssl rand -base64 32`. Losing one after data
+# is written under it is unrecoverable.
+JWT_SIGNING_KEY=
+MFA_ENCRYPTION_KEY=
+COOKIE_SIGNING_KEY=
+CSRF_SIGNING_KEY=
+PASSWORD_ENCRYPTION_KEY=
+INTEGRATION_SECRET_KEY=
+SMTP_SECRET_KEY=
 ```
 
 **2.** Save as `compose.yaml`:
@@ -75,7 +88,7 @@ services:
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
     volumes:
-      - ${DATA_DIR:-./data}/postgres:/var/db/postgres/data16
+      - ${DATA_DIR}/postgres:/var/db/postgres/data16
 
   redis:
     image: ghcr.io/daemonless/redis:latest
@@ -87,7 +100,7 @@ services:
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
     volumes:
-      - ${DATA_DIR:-./data}/redis:/data
+      - ${DATA_DIR}/redis:/data
 
   api:
     image: ghcr.io/daemonless/weavestream-api:latest
@@ -107,16 +120,16 @@ services:
       API_URL: ${API_URL:-http://localhost:3000/api}
       FILE_STORAGE_DIR: /var/lib/weavestream/files
       BACKUP_STORAGE_DIR: /var/lib/weavestream/backup
-      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:-}
-      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-}
-      PASSWORD_ENCRYPTION_KEY: ${PASSWORD_ENCRYPTION_KEY:-}
-      INTEGRATION_SECRET_KEY: ${INTEGRATION_SECRET_KEY:-}
-      SMTP_SECRET_KEY: ${SMTP_SECRET_KEY:-}
-      COOKIE_SIGNING_KEY: ${COOKIE_SIGNING_KEY:-}
-      CSRF_SIGNING_KEY: ${CSRF_SIGNING_KEY:-}
+      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY}
+      PASSWORD_ENCRYPTION_KEY: ${PASSWORD_ENCRYPTION_KEY}
+      INTEGRATION_SECRET_KEY: ${INTEGRATION_SECRET_KEY}
+      SMTP_SECRET_KEY: ${SMTP_SECRET_KEY}
+      COOKIE_SIGNING_KEY: ${COOKIE_SIGNING_KEY}
+      CSRF_SIGNING_KEY: ${CSRF_SIGNING_KEY}
     volumes:
-      - ${DATA_DIR:-./data}/files:/var/lib/weavestream/files
-      - ${DATA_DIR:-./data}/backup:/var/lib/weavestream/backup:ro
+      - ${DATA_DIR}/files:/var/lib/weavestream/files
+      - ${DATA_DIR}/backup:/var/lib/weavestream/backup:ro
 
   worker:
     image: ghcr.io/daemonless/weavestream-worker:latest
@@ -136,16 +149,16 @@ services:
       API_URL: ${API_URL:-http://localhost:3000/api}
       FILE_STORAGE_DIR: /var/lib/weavestream/files
       BACKUP_STORAGE_DIR: /var/lib/weavestream/backup
-      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:-}
-      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-}
-      PASSWORD_ENCRYPTION_KEY: ${PASSWORD_ENCRYPTION_KEY:-}
-      INTEGRATION_SECRET_KEY: ${INTEGRATION_SECRET_KEY:-}
-      SMTP_SECRET_KEY: ${SMTP_SECRET_KEY:-}
-      COOKIE_SIGNING_KEY: ${COOKIE_SIGNING_KEY:-}
-      CSRF_SIGNING_KEY: ${CSRF_SIGNING_KEY:-}
+      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY}
+      PASSWORD_ENCRYPTION_KEY: ${PASSWORD_ENCRYPTION_KEY}
+      INTEGRATION_SECRET_KEY: ${INTEGRATION_SECRET_KEY}
+      SMTP_SECRET_KEY: ${SMTP_SECRET_KEY}
+      COOKIE_SIGNING_KEY: ${COOKIE_SIGNING_KEY}
+      CSRF_SIGNING_KEY: ${CSRF_SIGNING_KEY}
     volumes:
-      - ${DATA_DIR:-./data}/files:/var/lib/weavestream/files
-      - ${DATA_DIR:-./data}/backup:/var/lib/weavestream/backup
+      - ${DATA_DIR}/files:/var/lib/weavestream/files
+      - ${DATA_DIR}/backup:/var/lib/weavestream/backup
 
   web:
     image: ghcr.io/daemonless/weavestream-web:latest
@@ -159,6 +172,8 @@ services:
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
       API_INTERNAL_URL: http://127.0.0.1:4000
+      COOKIE_SIGNING_KEY: ${COOKIE_SIGNING_KEY}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
 ```
 
 Then run `podman-compose up -d`.
@@ -178,13 +193,20 @@ Then run `podman-compose up -d`.
 | `APP_URL` | `http://localhost:3000` | Public URL where users access Weavestream (default: http://localhost:3000) |
 | `API_URL` | `http://localhost:3000/api` | Public URL of the API (default: http://localhost:3000/api) |
 | `DATA_DIR` | `./data` | Host path for persistent data (files, backups, database, redis) |
-| `WEB_HOST_PORT` | `3000` | Published host port for the web UI (default: 3000) |
+| `TRUST_PROXY_HOPS` | `1` | Reverse proxy hops in front of the web UI, 0 when exposed directly (default: 1) |
+| `JWT_SIGNING_KEY` | `<JWT_SIGNING_KEY>` | 32-byte base64 secret shared by api and worker |
+| `MFA_ENCRYPTION_KEY` | `<MFA_ENCRYPTION_KEY>` | 32-byte base64 secret shared by api and worker |
+| `PASSWORD_ENCRYPTION_KEY` | `<PASSWORD_ENCRYPTION_KEY>` | 32-byte base64 secret shared by api and worker |
+| `INTEGRATION_SECRET_KEY` | `<INTEGRATION_SECRET_KEY>` | 32-byte base64 secret shared by api and worker |
+| `SMTP_SECRET_KEY` | `<SMTP_SECRET_KEY>` | 32-byte base64 secret shared by api and worker |
+| `COOKIE_SIGNING_KEY` | `<COOKIE_SIGNING_KEY>` | 32-byte base64 secret shared by api and worker, and web |
+| `CSRF_SIGNING_KEY` | `<CSRF_SIGNING_KEY>` | 32-byte base64 secret shared by api and worker |
 
 ### Volumes
 
 | Path | Description |
 |------|-------------|
-| `-./data}/postgres` |  |
+| `/var/db/postgres/data16` | PostgreSQL database storage |
 
 **Architectures:** amd64
 **User:** `bsd` (UID/GID via PUID/PGID, defaults to 1000:1000)
