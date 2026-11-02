@@ -88,7 +88,7 @@ services:
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
     volumes:
-      - ${DATA_DIR}/postgres:/var/db/postgres/data16
+      - ${DATA_DIR}/postgres:/var/lib/postgresql/data
 
   redis:
     image: ghcr.io/daemonless/redis:latest
@@ -99,7 +99,7 @@ services:
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
     volumes:
-      - ${DATA_DIR}/redis:/data
+      - ${DATA_DIR}/redis:/config
 
   api:
     image: ghcr.io/daemonless/weavestream-api:latest
@@ -205,7 +205,7 @@ Then run `podman-compose up -d`.
 
 | Path | Description |
 |------|-------------|
-| `/var/db/postgres/data16` | PostgreSQL database storage |
+| `/var/lib/postgresql/data` | PostgreSQL database storage |
 
 **Architectures:** amd64
 **User:** `bsd` (UID/GID via PUID/PGID, defaults to 1000:1000)
