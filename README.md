@@ -64,6 +64,7 @@ services:
     image: ghcr.io/daemonless/postgres:16
     container_name: weavestream-postgres
     restart: always
+    network_mode: host
     annotations:
       org.freebsd.jail.allow.sysvipc: "true"
     environment:
@@ -80,6 +81,7 @@ services:
     image: ghcr.io/daemonless/redis:latest
     container_name: weavestream-redis
     restart: always
+    network_mode: host
     environment:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
@@ -91,6 +93,7 @@ services:
     image: ghcr.io/daemonless/weavestream-api:latest
     container_name: weavestream-api
     restart: always
+    network_mode: host
     depends_on:
       - postgres
       - redis
@@ -98,8 +101,8 @@ services:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@postgres:5432/${POSTGRES_DB:-weavestream}
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@127.0.0.1:5432/${POSTGRES_DB:-weavestream}
+      REDIS_URL: redis://127.0.0.1:6379/0
       APP_URL: ${APP_URL:-http://localhost:3000}
       API_URL: ${API_URL:-http://localhost:3000/api}
       FILE_STORAGE_DIR: /var/lib/weavestream/files
@@ -119,6 +122,7 @@ services:
     image: ghcr.io/daemonless/weavestream-worker:latest
     container_name: weavestream-worker
     restart: always
+    network_mode: host
     depends_on:
       - redis
       - api
@@ -126,10 +130,19 @@ services:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@postgres:5432/${POSTGRES_DB:-weavestream}
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@127.0.0.1:5432/${POSTGRES_DB:-weavestream}
+      REDIS_URL: redis://127.0.0.1:6379/0
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      API_URL: ${API_URL:-http://localhost:3000/api}
       FILE_STORAGE_DIR: /var/lib/weavestream/files
       BACKUP_STORAGE_DIR: /var/lib/weavestream/backup
+      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:-}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-}
+      PASSWORD_ENCRYPTION_KEY: ${PASSWORD_ENCRYPTION_KEY:-}
+      INTEGRATION_SECRET_KEY: ${INTEGRATION_SECRET_KEY:-}
+      SMTP_SECRET_KEY: ${SMTP_SECRET_KEY:-}
+      COOKIE_SIGNING_KEY: ${COOKIE_SIGNING_KEY:-}
+      CSRF_SIGNING_KEY: ${CSRF_SIGNING_KEY:-}
     volumes:
       - ${DATA_DIR:-./data}/files:/var/lib/weavestream/files
       - ${DATA_DIR:-./data}/backup:/var/lib/weavestream/backup
@@ -138,15 +151,14 @@ services:
     image: ghcr.io/daemonless/weavestream-web:latest
     container_name: weavestream-web
     restart: always
+    network_mode: host
     depends_on:
       - api
     environment:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
-      API_INTERNAL_URL: http://api:4000
-    ports:
-      - "${WEB_HOST_PORT:-3000}:3000"
+      API_INTERNAL_URL: http://127.0.0.1:4000
 ```
 
 Then run `podman-compose up -d`.
