@@ -15,6 +15,12 @@ x-daemonless:
   appjail: true
   community: "Discord:https://discord.gg/weavestream"
 
+  # Which service goes where when this stack is put on a network: the web UI
+  # is the one people open; the api, worker, database and cache stay private.
+  networking:
+    web: default
+    "*": private
+
   docs:
     env:
       PUID: "User ID for the container processes"
