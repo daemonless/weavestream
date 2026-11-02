@@ -1,0 +1,125 @@
+name: weavestream
+
+x-daemonless:
+  title: "Weavestream"
+  icon: ":material-server-network:"
+  category: "Productivity"
+  description: "Open-source, self-hosted IT documentation and asset management platform built around a relational knowledge model."
+  upstream_url: "https://github.com/Weavestream/Weavestream"
+  web_url: "https://weavestream.io"
+  freshports_url: ""
+  type: stack
+  user: "bsd"
+  mlock: false
+  upstream_binary: false
+  appjail: true
+  community: "Discord:https://discord.gg/weavestream"
+
+  docs:
+    env:
+      PUID: "User ID for the container processes"
+      PGID: "Group ID for the container processes"
+      TZ: "Timezone for the containers"
+      POSTGRES_USER: "PostgreSQL database user (default: weavestream)"
+      POSTGRES_PASSWORD: "Password for the PostgreSQL database"
+      POSTGRES_DB: "PostgreSQL database name (default: weavestream)"
+      APP_URL: "Public URL where users access Weavestream (default: http://localhost:3000)"
+      API_URL: "Public URL of the API (default: http://localhost:3000/api)"
+      DATA_DIR: "Host path for persistent data (files, backups, database, redis)"
+      WEB_HOST_PORT: "Published host port for the web UI (default: 3000)"
+    ports:
+      3000: "Weavestream Web UI (Next.js)"
+    volumes:
+      files: "Uploaded attachments and documents"
+      backup: "Scheduled database backup dumps"
+      postgres: "PostgreSQL database storage"
+      redis: "Redis persistence storage"
+
+services:
+  postgres:
+    image: ghcr.io/daemonless/postgres:16
+    container_name: weavestream-postgres
+    restart: always
+    annotations:
+      org.freebsd.jail.allow.sysvipc: "true"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-weavestream}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-weavestream}
+      POSTGRES_DB: ${POSTGRES_DB:-weavestream}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - ${DATA_DIR:-./data}/postgres:/var/db/postgres/data16
+
+  redis:
+    image: ghcr.io/daemonless/redis:latest
+    container_name: weavestream-redis
+    restart: always
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - ${DATA_DIR:-./data}/redis:/data
+
+  api:
+    image: ghcr.io/daemonless/weavestream-api:latest
+    container_name: weavestream-api
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-UTC}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@postgres:5432/${POSTGRES_DB:-weavestream}
+      REDIS_URL: redis://redis:6379/0
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      API_URL: ${API_URL:-http://localhost:3000/api}
+      FILE_STORAGE_DIR: /var/lib/weavestream/files
+      BACKUP_STORAGE_DIR: /var/lib/weavestream/backup
+      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:-}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-}
+      PASSWORD_ENCRYPTION_KEY: ${PASSWORD_ENCRYPTION_KEY:-}
+      INTEGRATION_SECRET_KEY: ${INTEGRATION_SECRET_KEY:-}
+      SMTP_SECRET_KEY: ${SMTP_SECRET_KEY:-}
+      COOKIE_SIGNING_KEY: ${COOKIE_SIGNING_KEY:-}
+      CSRF_SIGNING_KEY: ${CSRF_SIGNING_KEY:-}
+    volumes:
+      - ${DATA_DIR:-./data}/files:/var/lib/weavestream/files
+      - ${DATA_DIR:-./data}/backup:/var/lib/weavestream/backup:ro
+
+  worker:
+    image: ghcr.io/daemonless/weavestream-worker:latest
+    container_name: weavestream-worker
+    restart: always
+    depends_on:
+      - redis
+      - api
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-UTC}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@postgres:5432/${POSTGRES_DB:-weavestream}
+      REDIS_URL: redis://redis:6379/0
+      FILE_STORAGE_DIR: /var/lib/weavestream/files
+      BACKUP_STORAGE_DIR: /var/lib/weavestream/backup
+    volumes:
+      - ${DATA_DIR:-./data}/files:/var/lib/weavestream/files
+      - ${DATA_DIR:-./data}/backup:/var/lib/weavestream/backup
+
+  web:
+    image: ghcr.io/daemonless/weavestream-web:latest
+    container_name: weavestream-web
+    restart: always
+    depends_on:
+      - api
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-UTC}
+      API_INTERNAL_URL: http://api:4000
+    ports:
+      - "${WEB_HOST_PORT:-3000}:3000"

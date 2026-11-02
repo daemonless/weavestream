@@ -1,0 +1,16 @@
+# dbuild configuration file
+# Full reference: https://github.com/daemonless/dbuild
+
+title: Weavestream
+category: Productivity
+description: Open-source, self-hosted IT documentation and asset management platform built around a relational knowledge model.
+icon: ':material-server-network:'
+type: stack
+build:
+  architectures:
+    - amd64
+cit:
+  mode: health
+  compose: true
+  port: 3000
+  health: /login
