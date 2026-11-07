@@ -58,16 +58,33 @@ x-daemonless:
       POSTGRES_DB: "PostgreSQL database name (default: weavestream)"
       APP_URL: "Public URL where users access Weavestream (default: http://localhost:3000)"
       API_URL: "Public URL of the API (default: http://localhost:3000/api)"
-      DATA_DIR: "Host path for persistent data (files, backups, database, redis)"
+      DATA_DIR: "Folder for uploads, backups, the database and the cache"
       WEB_HOST_PORT: "Published host port for the web UI (default: 3000)"
       TRUST_PROXY_HOPS: "Reverse proxy hops in front of the web UI, 0 when exposed directly (default: 1)"
-      JWT_SIGNING_KEY: "32-byte base64 secret shared by api and worker"
-      MFA_ENCRYPTION_KEY: "32-byte base64 secret shared by api and worker"
-      PASSWORD_ENCRYPTION_KEY: "32-byte base64 secret shared by api and worker"
-      INTEGRATION_SECRET_KEY: "32-byte base64 secret shared by api and worker"
-      SMTP_SECRET_KEY: "32-byte base64 secret shared by api and worker"
-      COOKIE_SIGNING_KEY: "32-byte base64 secret shared by api and worker, and web"
-      CSRF_SIGNING_KEY: "32-byte base64 secret shared by api and worker"
+      # Seven keys fjord makes up at install: nothing to type, so they sit
+      # under Advanced. Losing one after data is written under it is
+      # unrecoverable.
+      JWT_SIGNING_KEY:
+        desc: "Signs sign-in tokens"
+        level: advanced
+      MFA_ENCRYPTION_KEY:
+        desc: "Encrypts two-factor (TOTP) secrets; without it two-factor sign-in stops working"
+        level: advanced
+      PASSWORD_ENCRYPTION_KEY:
+        desc: "Encrypts the passwords stored in Weavestream; without it they cannot be read"
+        level: advanced
+      INTEGRATION_SECRET_KEY:
+        desc: "Encrypts integration credentials; without it they cannot be read"
+        level: advanced
+      SMTP_SECRET_KEY:
+        desc: "Encrypts the mail server password; without it mail stops"
+        level: advanced
+      COOKIE_SIGNING_KEY:
+        desc: "Signs browser cookies"
+        level: advanced
+      CSRF_SIGNING_KEY:
+        desc: "Signs the tokens that guard forms against cross-site requests"
+        level: advanced
     ports:
       3000: "Weavestream Web UI (Next.js)"
     volumes:
