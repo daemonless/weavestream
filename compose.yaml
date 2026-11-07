@@ -21,13 +21,40 @@ x-daemonless:
     web: default
     "*": private
 
+  # The bundled PostgreSQL, or one the person already runs. Not a dbuild
+  # database choice: both api and worker read one DATABASE_URL.
+  choices:
+    database:
+      label: Database
+      doc: Where Weavestream keeps its data.
+      default: bundled
+      options:
+        bundled:
+          label: "Bundled PostgreSQL"
+          doc: One more container, its data under DATA_DIR/postgres.
+        external:
+          label: "Your own PostgreSQL"
+          doc: >-
+            A PostgreSQL you already run; the database must exist and the
+            user must own it. Scheduled backups run pg_dump 16, which refuses
+            a newer server: use PostgreSQL 16 or older.
+          drop: [postgres]
+          ask:
+            - { name: POSTGRES_HOST, label: Host }
+            - { name: POSTGRES_PORT, label: Port, default: "5432" }
+            - { name: POSTGRES_USER, label: User, default: weavestream }
+            - { name: POSTGRES_PASSWORD, label: Password, type: secret }
+            - { name: POSTGRES_DB, label: Database, default: weavestream }
+
   docs:
     env:
       PUID: "User ID for the container processes"
       PGID: "Group ID for the container processes"
       TZ: "Timezone for the containers"
       POSTGRES_USER: "PostgreSQL database user (default: weavestream)"
-      POSTGRES_PASSWORD: "Password for the PostgreSQL database"
+      POSTGRES_PASSWORD: "Password for the PostgreSQL database; URL-encode any @ : / # in it"
+      POSTGRES_HOST: "PostgreSQL server (default: the bundled postgres service)"
+      POSTGRES_PORT: "PostgreSQL port (default: 5432)"
       POSTGRES_DB: "PostgreSQL database name (default: weavestream)"
       APP_URL: "Public URL where users access Weavestream (default: http://localhost:3000)"
       API_URL: "Public URL of the API (default: http://localhost:3000/api)"
@@ -88,7 +115,7 @@ services:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@postgres:5432/${POSTGRES_DB:-weavestream}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-weavestream}
       REDIS_URL: redis://redis:6379/0
       APP_URL: ${APP_URL:-http://localhost:3000}
       API_URL: ${API_URL:-http://localhost:3000/api}
@@ -116,7 +143,7 @@ services:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@postgres:5432/${POSTGRES_DB:-weavestream}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-weavestream}
       REDIS_URL: redis://redis:6379/0
       APP_URL: ${APP_URL:-http://localhost:3000}
       API_URL: ${API_URL:-http://localhost:3000/api}

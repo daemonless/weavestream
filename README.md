@@ -34,6 +34,12 @@ Before deploying, ensure your host environment is ready. See the [Quick Start Gu
 
 ### Podman Compose
 
+**Database.** Where Weavestream keeps its data.
+
+#### Bundled PostgreSQL (default)
+
+One more container, its data under DATA_DIR/postgres.
+
 **1.** Save as `.env` and fill in what is empty:
 
 ```env { data-zip-bundle="weavestream-podman" data-zip-filename=".env" }
@@ -112,7 +118,7 @@ services:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@postgres:5432/${POSTGRES_DB:-weavestream}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-weavestream}
       REDIS_URL: redis://redis:6379/0
       APP_URL: ${APP_URL:-http://localhost:3000}
       API_URL: ${API_URL:-http://localhost:3000/api}
@@ -140,7 +146,140 @@ services:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@postgres:5432/${POSTGRES_DB:-weavestream}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-weavestream}
+      REDIS_URL: redis://redis:6379/0
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      API_URL: ${API_URL:-http://localhost:3000/api}
+      FILE_STORAGE_DIR: /var/lib/weavestream/files
+      BACKUP_STORAGE_DIR: /var/lib/weavestream/backup
+      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY}
+      PASSWORD_ENCRYPTION_KEY: ${PASSWORD_ENCRYPTION_KEY}
+      INTEGRATION_SECRET_KEY: ${INTEGRATION_SECRET_KEY}
+      SMTP_SECRET_KEY: ${SMTP_SECRET_KEY}
+      COOKIE_SIGNING_KEY: ${COOKIE_SIGNING_KEY}
+      CSRF_SIGNING_KEY: ${CSRF_SIGNING_KEY}
+    volumes:
+      - ${DATA_DIR}/files:/var/lib/weavestream/files
+      - ${DATA_DIR}/backup:/var/lib/weavestream/backup
+
+  web:
+    image: ghcr.io/daemonless/weavestream-web:latest
+    container_name: weavestream-web
+    restart: always
+    depends_on:
+      - api
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-UTC}
+      API_INTERNAL_URL: http://api:4000
+      COOKIE_SIGNING_KEY: ${COOKIE_SIGNING_KEY}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
+    ports:
+      - "${WEB_HOST_PORT:-3000}:3000"
+```
+
+Then run `podman-compose up -d`.
+
+#### Your own PostgreSQL
+
+A PostgreSQL you already run; the database must exist and the user must own it. Scheduled backups run pg_dump 16, which refuses a newer server: use PostgreSQL 16 or older.
+
+**1.** Save as `.env` and fill in Host, Port, User, Password, Database:
+
+```env { data-zip-bundle="weavestream-podman-database-external" data-zip-filename=".env" }
+# Weavestream environment variables
+# Copy to .env and adjust as needed
+
+POSTGRES_USER=weavestream  # User
+POSTGRES_PASSWORD=  # Password
+POSTGRES_DB=weavestream  # Database
+
+DATA_DIR=./data
+WEB_HOST_PORT=3000
+APP_URL=http://localhost:3000
+API_URL=http://localhost:3000/api
+
+PUID=1000
+PGID=1000
+TZ=UTC
+
+# Reverse proxy hops in front of the web UI; 0 when it is exposed directly
+TRUST_PROXY_HOPS=1
+
+# Secrets: no defaults on purpose, a shipped value would be shared by every
+# install. Generate each with `openssl rand -base64 32`. Losing one after data
+# is written under it is unrecoverable.
+JWT_SIGNING_KEY=
+MFA_ENCRYPTION_KEY=
+COOKIE_SIGNING_KEY=
+CSRF_SIGNING_KEY=
+PASSWORD_ENCRYPTION_KEY=
+INTEGRATION_SECRET_KEY=
+SMTP_SECRET_KEY=
+
+# Database: Your own PostgreSQL
+POSTGRES_HOST=  # Host
+POSTGRES_PORT=5432  # Port
+```
+
+**2.** Save as `compose.yaml`:
+
+```yaml { data-zip-bundle="weavestream-podman-database-external" data-zip-filename="compose.yaml" }
+name: weavestream
+
+services:
+  redis:
+    image: ghcr.io/daemonless/redis:latest
+    container_name: weavestream-redis
+    restart: always
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - ${DATA_DIR}/redis:/config
+
+  api:
+    image: ghcr.io/daemonless/weavestream-api:latest
+    container_name: weavestream-api
+    restart: always
+    depends_on:
+      - redis
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-UTC}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-weavestream}
+      REDIS_URL: redis://redis:6379/0
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      API_URL: ${API_URL:-http://localhost:3000/api}
+      FILE_STORAGE_DIR: /var/lib/weavestream/files
+      BACKUP_STORAGE_DIR: /var/lib/weavestream/backup
+      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY}
+      PASSWORD_ENCRYPTION_KEY: ${PASSWORD_ENCRYPTION_KEY}
+      INTEGRATION_SECRET_KEY: ${INTEGRATION_SECRET_KEY}
+      SMTP_SECRET_KEY: ${SMTP_SECRET_KEY}
+      COOKIE_SIGNING_KEY: ${COOKIE_SIGNING_KEY}
+      CSRF_SIGNING_KEY: ${CSRF_SIGNING_KEY}
+    volumes:
+      - ${DATA_DIR}/files:/var/lib/weavestream/files
+      - ${DATA_DIR}/backup:/var/lib/weavestream/backup:ro
+
+  worker:
+    image: ghcr.io/daemonless/weavestream-worker:latest
+    container_name: weavestream-worker
+    restart: always
+    depends_on:
+      - redis
+      - api
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-UTC}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-weavestream}
       REDIS_URL: redis://redis:6379/0
       APP_URL: ${APP_URL:-http://localhost:3000}
       API_URL: ${API_URL:-http://localhost:3000/api}
@@ -183,11 +322,13 @@ Then run `podman-compose up -d`.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `POSTGRES_USER` | `weavestream` | PostgreSQL database user (default: weavestream) |
-| `POSTGRES_PASSWORD` | `weavestream` | Password for the PostgreSQL database |
+| `POSTGRES_PASSWORD` | `weavestream` | Password for the PostgreSQL database; URL-encode any @ : / # in it |
 | `POSTGRES_DB` | `weavestream` | PostgreSQL database name (default: weavestream) |
 | `PUID` | `1000` | User ID for the container processes |
 | `PGID` | `1000` | Group ID for the container processes |
 | `TZ` | `UTC` | Timezone for the containers |
+| `POSTGRES_HOST` | `` | PostgreSQL server (default: the bundled postgres service) |
+| `POSTGRES_PORT` | `` | PostgreSQL port (default: 5432) |
 | `APP_URL` | `http://localhost:3000` | Public URL where users access Weavestream (default: http://localhost:3000) |
 | `API_URL` | `http://localhost:3000/api` | Public URL of the API (default: http://localhost:3000/api) |
 | `DATA_DIR` | `./data` | Host path for persistent data (files, backups, database, redis) |
