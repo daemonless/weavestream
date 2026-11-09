@@ -56,7 +56,9 @@ x-daemonless:
       POSTGRES_HOST: "PostgreSQL server (default: the bundled postgres service)"
       POSTGRES_PORT: "PostgreSQL port (default: 5432)"
       POSTGRES_DB: "PostgreSQL database name (default: weavestream)"
-      APP_URL: "Public URL where users access Weavestream (default: http://localhost:3000)"
+      APP_URL:
+        desc: "Address you open Weavestream at, e.g. https://weavestream.example.com (default: http://localhost:3000)"
+        public_url: true
       API_URL: "Public URL of the API (default: http://localhost:3000/api)"
       DATA_DIR: "Folder for uploads, backups, the database and the cache"
       WEB_HOST_PORT: "Published host port for the web UI (default: 3000)"
