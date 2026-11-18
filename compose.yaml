@@ -3,7 +3,7 @@ name: weavestream
 x-daemonless:
   title: "Weavestream"
   icon: ":material-server-network:"
-  category: "Productivity"
+  category: "Productivity & Docs"
   description: "Open-source, self-hosted IT documentation and asset management platform built around a relational knowledge model."
   upstream_url: "https://github.com/Weavestream/Weavestream"
   web_url: "https://weavestream.io"
@@ -20,6 +20,11 @@ x-daemonless:
   networking:
     web: default
     "*": private
+  # The variable each service's consumers read its address from.
+  hostnames:
+    postgres: POSTGRES_HOST
+    redis: REDIS_HOST
+    api: API_HOST
 
   # The bundled PostgreSQL, or one the person already runs. Not a dbuild
   # database choice: both api and worker read one DATABASE_URL.
@@ -56,10 +61,18 @@ x-daemonless:
       POSTGRES_HOST: "PostgreSQL server (default: the bundled postgres service)"
       POSTGRES_PORT: "PostgreSQL port (default: 5432)"
       POSTGRES_DB: "PostgreSQL database name (default: weavestream)"
+      REDIS_HOST:
+        desc: "Where the api and worker find Redis (set automatically; default: redis)"
+        level: advanced
+        optional: true
+      API_HOST:
+        desc: "Where the web UI finds the api (set automatically; default: api)"
+        level: advanced
+        optional: true
       APP_URL:
         desc: "Address you open Weavestream at, e.g. https://weavestream.example.com (default: http://localhost:3000)"
         public_url: true
-      API_URL: "Public URL of the API (default: http://localhost:3000/api)"
+      API_URL: "Public URL of the API (default: APP_URL followed by /api)"
       DATA_DIR: "Folder for uploads, backups, the database and the cache"
       WEB_HOST_PORT: "Published host port for the web UI (default: 3000)"
       TRUST_PROXY_HOPS: "Reverse proxy hops in front of the web UI, 0 when exposed directly (default: 1)"
@@ -135,9 +148,9 @@ services:
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
       DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-weavestream}
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://${REDIS_HOST:-redis}:6379/0
       APP_URL: ${APP_URL:-http://localhost:3000}
-      API_URL: ${API_URL:-http://localhost:3000/api}
+      API_URL: ${API_URL:-}
       FILE_STORAGE_DIR: /var/lib/weavestream/files
       BACKUP_STORAGE_DIR: /var/lib/weavestream/backup
       JWT_SIGNING_KEY: ${JWT_SIGNING_KEY}
@@ -163,9 +176,9 @@ services:
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
       DATABASE_URL: postgresql://${POSTGRES_USER:-weavestream}:${POSTGRES_PASSWORD:-weavestream}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-weavestream}
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://${REDIS_HOST:-redis}:6379/0
       APP_URL: ${APP_URL:-http://localhost:3000}
-      API_URL: ${API_URL:-http://localhost:3000/api}
+      API_URL: ${API_URL:-}
       FILE_STORAGE_DIR: /var/lib/weavestream/files
       BACKUP_STORAGE_DIR: /var/lib/weavestream/backup
       JWT_SIGNING_KEY: ${JWT_SIGNING_KEY}
@@ -189,7 +202,7 @@ services:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
-      API_INTERNAL_URL: http://api:4000
+      API_INTERNAL_URL: http://${API_HOST:-api}:4000
       COOKIE_SIGNING_KEY: ${COOKIE_SIGNING_KEY}
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
     ports:
